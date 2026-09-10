@@ -358,6 +358,79 @@ class MetaData:
         sdist or in other wheels for the project.
 
         Full details of the semantics of Dynamic are described in PEP 643.
+
+    Import-Name (multiple use)
+        A string containing an import name that the
+        project exclusively provides wheninstalled. The specified import name MUST
+        be a valid Python identifier or can be empty. The import names listed in
+        this field MUST be importable when the project is installed on some
+        platform for the same version of the project. This implies that the
+        metadata MUST be consistent across all sdists and wheels for a project
+        release.
+
+        An import name MAY be followed by a semicolon and the term “private”
+        (e.g. ; private) with any amount of whitespace surrounding the
+        semicolon. This signals to tools that the import name is not part of
+        the public API for the project.
+
+        Projects SHOULD list all the shortest import names that are exclusively
+        provided by the project. If any of the shortest names are dotted names,
+        all intervening names from that name to the top-level name SHOULD also
+        be listed appropriately in Import-Name and/or Import-Namespace.
+
+        If a project lists the same name in both Import-Name and
+        Import-Namespace, tools MUST raise an error due to ambiguity.
+
+        Tools SHOULD raise an error when two projects that are about to be
+        installed list names that overlap in each other’s Import-Name entries,
+        or when a project has an entry in Import-Name that overlaps with
+        another project’s Import-Namespace entries. This is to avoid projects
+        unexpectedly shadowing another project’s code. Tools MAY warn or raise
+        an error when installing a project into a preexisting environment where
+        there is import name overlap with a project that is already installed.
+
+        Projects MAY have an empty Import-Name field in their metadata to
+        represent a project with no import names (i.e. there are no Python
+        modules of any kind in the distribution file).
+
+        Since projects MAY have no Import-Name metadata (either because the
+        project uses an older metadata version, or because it didn’t specify
+        any), then tools have no information about what names the project
+        provides. However, in practice the majority of projects have their
+        project name match what their import name would be. As such, it is a
+        reasonable assumption to make that a project name that is normalized in
+        some way to an import name (e.g. packaging.utils.canonicalize_name
+        (name, validate=True).replace("-", "_")) can be used if some answer is
+        needed.
+
+    Import-Namespace (multiple use)
+         A string containing an import name that the
+        project provides when installed, but not exclusively. The specified import
+        name MUST be a valid Python identifier. This field is used for namespace
+        packages where multiple projects can contribute to the same import
+        namespace. Projects all listing the same import name in Import-Namespace
+        can be installed together without shadowing each other.
+
+        An import name MAY be followed by a semicolon and the term “private”
+        (e.g. ; private) with any amount of whitespace surrounding the
+        semicolon. This signals to tools that the import name is not part of
+        the public API for the project.
+
+        Projects SHOULD list all the shortest import names that are exclusively
+        provided by the project. If any of the shortest names are dotted names,
+        all intervening names from that name to the top-level name SHOULD also
+        be listed appropriately in Import-Name and/or Import-Namespace.
+
+        The import names listed in this field MUST be importable when the
+        project is installed on some platform for the same version of the
+        project. This implies that the metadata MUST be consistent across all
+        sdists and wheels for a project release.
+
+        If a project lists the same name in both Import-Name and
+        Import-Namespace, tools MUST raise an error due to ambiguity.
+
+        Note that Import-Namespace CANNOT be empty like Import-Name.
+
     """
     def __init__(self, *, name: str, version: Union[str, Version],
                  summary: Optional[str] = None,
@@ -386,6 +459,8 @@ class MetaData:
                  provides: Optional[str] = None,
                  requires: Optional[str] = None,
                  dynamic: Optional[str] = None,
+                 import_name: Optional[str] = None,
+                 import_namespace: Optional[str] = None,
                  ):
         # self.metadata_version = '2.1' by property
         self.name = name
@@ -425,13 +500,15 @@ class MetaData:
         self.provides = provides
         self.requires = requires
         self.dynamic = dynamic or []
+        self.import_name = import_name or []
+        self.import_namespace = import_namespace or []
 
     __slots__ = _slots_from_params(__init__)
 
     @property
     def metadata_version(self):
         return self._metadata_version
-    _metadata_version = '2.2'
+    _metadata_version = '2.5'
 
     @classmethod
     def field_is_multiple_use(cls, field_name: str) -> bool:
